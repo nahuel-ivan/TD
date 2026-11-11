@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stellantis | Pedidos de Diseños</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--navy:#071426;--navy2:#102744;--blue:#1769aa;--bg:#f3f6fa;--text:#172334;--muted:#687789;--line:#dce4ed;--green:#16834b;--yellow:#a96a00;--red:#bd3030}
+body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:linear-gradient(120deg,var(--navy),var(--navy2));color:white;padding:22px max(20px,calc((100% - 1400px)/2));}
+.head{max-width:1400px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px}.mark{width:42px;height:42px;border:1px solid #6e8aa8;border-radius:12px;display:grid;place-items:center;font-weight:800;letter-spacing:-2px;color:#fff;font-size:20px}
+h1{font-size:21px;letter-spacing:.2px}.subtitle{font-size:12px;color:#b9c9da;margin-top:4px}
+.connection{font-size:12px;color:#d7e4f1;background:#ffffff12;border:1px solid #ffffff25;padding:8px 11px;border-radius:20px}
+main{max-width:1400px;margin:25px auto;padding:0 20px 45px}
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:white;color:#425166;padding:11px 17px;border-radius:9px;cursor:pointer;font-weight:700}
+.tab.active{background:var(--navy2);color:white;border-color:var(--navy2)}
+.panel{display:none}.panel.active{display:block}
+.topline{display:flex;justify-content:space-between;align-items:end;gap:15px;flex-wrap:wrap;margin-bottom:16px}
+h2{font-size:21px;color:#13243a}.desc{font-size:13px;color:var(--muted);margin-top:5px}
+.controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+input,select,button{font:inherit}
+input[type=date],input[type=search],select{background:white;border:1px solid #cbd5e1;border-radius:8px;padding:10px 11px;color:#263649;min-height:39px}
+.btn{border:0;border-radius:8px;padding:11px 15px;cursor:pointer;font-weight:700;transition:.15s}
+.btn:disabled{opacity:.5;cursor:not-allowed}.primary{background:var(--blue);color:white}.dark{background:var(--navy2);color:white}.outline{background:white;border:1px solid var(--line);color:#31445b}.btn:hover{filter:brightness(.96)}
+.upload{background:white;border:2px dashed #9db0c4;border-radius:13px;padding:22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:17px}
+.upload.drag{border-color:var(--blue);background:#edf6ff}.upload strong{display:block;margin-bottom:5px}.upload p{font-size:12px;color:var(--muted)}
+.upload-icon{font-size:28px;margin-right:12px}.upload-left{display:flex;align-items:center}
+.notice{font-size:12px;color:var(--muted);margin:-5px 0 17px;line-height:1.5}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:12px;margin-bottom:17px}
+.kpi{background:white;border:1px solid var(--line);border-radius:11px;padding:15px 16px;min-height:90px}
+.kpi .value{font-size:26px;font-weight:800;margin-bottom:5px}.kpi .label{font-size:12px;color:var(--muted)}
+.kpi.green .value{color:var(--green)}.kpi.yellow .value{color:var(--yellow)}.kpi.red .value{color:var(--red)}
+.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;background:white;border:1px solid var(--line);border-bottom:0;border-radius:11px 11px 0 0;padding:12px}
+.toolbar-left,.toolbar-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.count{font-size:12px;color:var(--muted)}
+.table-wrap{overflow:auto;background:white;border:1px solid var(--line);border-radius:0 0 11px 11px}
+table{width:100%;border-collapse:collapse;min-width:980px}
+th{background:#f7f9fc;color:#526176;font-size:11px;text-transform:uppercase;letter-spacing:.45px;text-align:left;padding:13px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid #edf1f5;font-size:13px;white-space:nowrap}
+tr:last-child td{border-bottom:0}tbody tr:hover{background:#fafcff}
+.design{font-weight:800;letter-spacing:.2px}.order{font-family:Consolas,monospace;color:#46566b}
+.status{border:1px solid #d6dee8;border-radius:7px;padding:7px 9px;background:white;font-size:12px;font-weight:700}
+.status.busqueda{color:#1769aa}.status.separado{color:#a96a00}.status.enviado{color:#16834b}.status.sin-stock{color:#bd3030}
+.result.yes{color:var(--green);font-weight:700}.result.no{color:var(--red);font-weight:700}
+.empty{padding:35px;text-align:center;color:var(--muted);font-size:13px}
+.message{display:none;padding:11px 13px;border-radius:8px;margin-bottom:14px;font-size:13px;line-height:1.4}
+.message.show{display:block}.message.ok{background:#e9f7ef;color:#17653b;border:1px solid #b9e2c8}.message.err{background:#fff0f0;color:#9b2525;border:1px solid #f0caca}.message.info{background:#edf5ff;color:#245b91;border:1px solid #c9def7}
+.history-box{background:white;border:1px solid var(--line);border-radius:11px;padding:17px;margin-top:15px}
+.boxes-input{width:86px;min-height:34px;border:1px solid #cbd5e1;border-radius:7px;padding:6px 8px;font-weight:700;color:#263649}
+.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-top:15px}
+.chart-card{background:white;border:1px solid var(--line);border-radius:12px;padding:17px;min-width:0}
+.chart-card h3{font-size:15px;margin-bottom:5px}.chart-card p{font-size:12px;color:var(--muted);margin-bottom:14px}
+.chart-holder{height:300px;position:relative}
+.chart-card canvas{cursor:pointer}
+.chart-hint{font-size:11px!important;color:#1769aa!important;margin-top:8px!important}
+.chart-detail{display:none;background:white;border:1px solid var(--line);border-radius:12px;margin-top:16px;overflow:hidden}
+.chart-detail.show{display:block}
+.detail-head{padding:16px 18px;background:#f7f9fc;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.detail-head h3{font-size:16px;color:#172b43}
+.detail-head p{font-size:12px;color:var(--muted);margin-top:4px}
+.detail-table{overflow:auto;max-height:440px}
+.detail-table table{min-width:800px}
+.detail-close{border:1px solid var(--line);background:white;border-radius:7px;padding:8px 11px;cursor:pointer;font-weight:700;color:#425166}
+.detail-empty{padding:25px;text-align:center;color:var(--muted);font-size:13px}
+.chart-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}
+.chart-summary .kpi{min-height:80px}
+@media(max-width:760px){.chart-grid{grid-template-columns:1fr}.chart-summary{grid-template-columns:1fr 1fr}}
+.history-box h3{font-size:15px;margin-bottom:7px}.history-box p{font-size:12px;color:var(--muted);margin-bottom:12px}
+footer{text-align:center;color:#8290a0;font-size:11px;padding:20px}
+@media(max-width:850px){.cards{grid-template-columns:repeat(2,minmax(120px,1fr))}.cards .kpi:last-child{grid-column:span 2}}
+@media(max-width:520px){header{padding:18px}.head{align-items:flex-start}main{padding:0 12px 30px;margin-top:17px}.cards{gap:8px}.kpi{padding:12px}.kpi .value{font-size:22px}.topline{align-items:flex-start}.upload{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div class="brand">
+      <div class="mark">S</div>
+      <div><h1>Stellantis | Pedidos de Diseños</h1><div class="subtitle">Organización, seguimiento y cierre diario de pedidos</div></div>
+    </div>
+    <div class="connection" id="connection">Conectando con la base de datos…</div>
+  </div>
+</header>
+
+<main>
+  <nav class="tabs">
+    <button class="tab active" data-tab="gestion">Gestión diaria</button>
+    <button class="tab" data-tab="graficos">Gráficos</button>
+    <button class="tab" data-tab="historial">Historial de reportes</button>
+  </nav>
+
+  <section class="panel active" id="panel-gestion">
+    <div class="topline">
+      <div><h2>Gestión de pedidos</h2><p class="desc">Se muestra una sola vez cada diseño, tomando el pedido más antiguo de la jornada.</p></div>
+      <div class="controls"><label for="fecha" style="font-size:12px;font-weight:700">Jornada:</label><input type="date" id="fecha"><button class="btn outline" id="recargar">Actualizar</button></div>
+    </div>
+
+    <div class="upload" id="dropzone">
+      <div class="upload-left"><div class="upload-icon">📄</div><div><strong>Arrastrá el archivo de pedidos acá</strong><p>Compatible con XLS, XLSX y CSV. Podés cargar más de un archivo durante el día.</p></div></div>
+      <div><input type="file" id="fileInput" accept=".xls,.xlsx,.csv" hidden><button class="btn primary" id="selectFile">Seleccionar archivo</button></div>
+    </div>
+    <div class="notice">La importación es incremental: los pedidos existentes no se duplican ni pierden su estado. Los nuevos pedidos se agregan automáticamente. Si un diseño se repite en la misma jornada, se conserva en la lista el pedido con la hora más temprana. La hora de envío se registra al marcar “Enviado” y queda guardada solamente en este navegador, no en Supabase.</div>
+    <div class="message" id="message"></div>
+
+    <div class="cards">
+      <div class="kpi"><div class="value" id="kTotal">0</div><div class="label">Diseños únicos</div></div>
+      <div class="kpi green"><div class="value" id="kEnviado">0</div><div class="label">Enviados</div></div>
+      <div class="kpi yellow"><div class="value" id="kSeparado">0</div><div class="label">Separados</div></div>
+      <div class="kpi"><div class="value" id="kBuscando">0</div><div class="label">Buscando</div></div>
+      <div class="kpi red"><div class="value" id="kSinStock">0</div><div class="label">Sin stock</div></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left"><input type="search" id="buscar" placeholder="Buscar diseño o pedido…" style="min-width:220px"><select id="filtroEstado"><option value="">Todos los estados</option><option>Buscando</option><option>Separado</option><option>Enviado</option><option>Sin stock</option></select></div>
+      <div class="toolbar-right"><span class="count" id="countShown">0 diseños</span><button class="btn dark" id="exportar">Exportar reporte diario Excel</button></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Orden</th><th>Número de pedido</th><th>Diseño</th><th>Fecha y hora</th><th>Cantidad</th><th>Pedidos asociados</th><th>Cajas enviadas</th><th>Estado</th><th>Hora de envío</th><th>Resultado</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="10" class="empty">Conectando…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-graficos">
+    <div class="topline">
+      <div><h2>Indicadores de la jornada</h2><p class="desc">Seguimiento visual de los diseños y las cajas enviadas.</p></div>
+      <div class="controls"><label for="fechaGraficos" style="font-size:12px;font-weight:700">Jornada:</label><input type="date" id="fechaGraficos"><button class="btn outline" id="actualizarGraficos">Actualizar gráficos</button></div>
+    </div>
+    <div class="chart-summary">
+      <div class="kpi"><div class="value" id="gDisenos">0</div><div class="label">Diseños únicos</div></div>
+      <div class="kpi green"><div class="value" id="gEnviados">0</div><div class="label">Diseños enviados</div></div>
+      <div class="kpi yellow"><div class="value" id="gCajas">0</div><div class="label">Total de cajas enviadas</div></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card"><h3>Estado de los diseños</h3><p>Cantidad de diseños según su estado actual.</p><div class="chart-holder"><canvas id="chartEstados"></canvas></div><p class="chart-hint">Hacé clic en un segmento para ver los pedidos de ese estado.</p></div>
+      <div class="chart-card"><h3>Cajas enviadas por diseño</h3><p>Principales diseños según la cantidad de cajas registradas.</p><div class="chart-holder"><canvas id="chartCajas"></canvas></div><p class="chart-hint">Hacé clic en una barra para ver los pedidos de ese diseño.</p></div>
+    </div>
+    <div class="chart-detail" id="chartDetail">
+      <div class="detail-head"><div><h3 id="detailTitle">Detalle</h3><p id="detailSubtitle">Información de los pedidos seleccionados.</p></div><button class="detail-close" id="closeDetail">Cerrar detalle</button></div>
+      <div class="detail-table" id="detailContent"><div class="detail-empty">Seleccioná un dato de los gráficos para ver el detalle.</div></div>
+    </div>
+    <div class="notice" style="margin-top:14px">Los gráficos se actualizan al cambiar la jornada o al modificar estados y cantidades de cajas.</div>
+  </section>
+
+  <section class="panel" id="panel-historial">
+    <div class="topline">
+      <div><h2>Historial de jornadas</h2><p class="desc">Consultá jornadas anteriores y descargá nuevamente sus reportes.</p></div>
+      <button class="btn outline" id="refreshHistory">Actualizar historial</button>
+    </div>
+    <div class="history-box">
+      <h3>Seleccionar jornada</h3>
+      <p>Elegí una fecha para abrir sus pedidos y exportar el reporte correspondiente.</p>
+      <div class="controls"><select id="historyDate" style="min-width:220px"><option value="">Cargando jornadas…</option></select><button class="btn primary" id="openHistory">Ver jornada</button><button class="btn dark" id="exportHistory">Descargar reporte Excel</button></div>
+    </div>
+    <div class="history-box">
+      <h3>¿Qué incluye el reporte?</h3>
+      <p>Una hoja de resumen con pedidos originales, diseños únicos, duplicados, entregados, no entregados y porcentaje de cumplimiento. Otra hoja contiene el detalle de cada diseño, su pedido más antiguo, hora, cantidad, estado y números de pedido asociados.</p>
+    </div>
+  </section>
+</main>
+<footer>Stellantis | Herramienta interna de seguimiento de pedidos</footer>
+
+<script>
+/* CONFIGURACIÓN: clave pública publishable del proyecto Supabase. */
+const SUPABASE_URL = "https://zdoscwyvoazrtpofrabg.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_N7bJtip-RJo3KTMUtIotKw_UIfk9R_H";
+const API = SUPABASE_URL + "/rest/v1";
+const ESTADOS = ["Buscando","Separado","Enviado","Sin stock"];
+
+let pedidosDia = [];
+let seguimiento = {};
+let cajasPorDiseno = {};
+let horasEnvio = {};
+let chartEstados = null;
+let chartCajas = null;
+let jornadaActual = "";
+let gruposActuales = [];
+
+const $ = id => document.getElementById(id);
+const localDateKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+
+function showMessage(text,type="info"){
+  const el=$("message");el.textContent=text;el.className="message show "+type;
+}
+function clearMessage(){ $("message").className="message"; }
+function statusClass(s){return s==="Buscando"?"busqueda":s==="Separado"?"separado":s==="Enviado"?"enviado":"sin-stock";}
+
+async function api(path, options={}){
+  if(!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("PEGAR_AQUI")) throw new Error("Falta configurar la clave anon/public de Supabase en el código.");
+  const headers={"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"};
+  if(options.prefer) headers["Prefer"]=options.prefer;
+  const response=await fetch(API+path,{method:options.method||"GET",headers,body:options.body?JSON.stringify(options.body):undefined});
+  const body=await response.text();
+  if(!response.ok) throw new Error(`Supabase (${response.status}): ${body || response.statusText}`);
+  if(!body) return [];
+  try{return JSON.parse(body);}catch{return body;}
+}
+
+function parseDateTime(value){
+  if(value instanceof Date && !isNaN(value)) return value;
+  const s=String(value ?? "").trim();
+  if(!s) return null;
+  // Formato habitual: dd/mm/yyyy hh:mm[:ss]
+  let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2})(?:[.,](\d+))?)?)?$/);
+  if(m){
+    const ms=m[7]?Number(("0."+m[7])*1000):0;
+    const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]),Number(m[4]||0),Number(m[5]||0),Number(m[6]||0),ms);
+    return isNaN(d)?null:d;
+  }
+  // Formato ISO u otros formatos reconocidos por el navegador.
+  const normalized=s.includes(" ") && /^\d{4}-\d{2}-\d{2} /.test(s)?s.replace(" ","T"):s;
+  const d=new Date(normalized);
+  return isNaN(d)?null:d;
+}
+function fmtDateTime(value){
+  const d=new Date(value);
+  if(isNaN(d)) return "";
+  return d.toLocaleString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+function envioStorageKey(day,design){return `stellantis_hora_envio_${day}_${design}`;}
+function getHoraEnvio(day,design){
+  try{return localStorage.getItem(envioStorageKey(day,design))||"";}catch{return "";}
+}
+function setHoraEnvio(day,design,value){
+  try{
+    const key=envioStorageKey(day,design);
+    if(value)localStorage.setItem(key,value);else localStorage.removeItem(key);
+  }catch{}
+}
+function fmtHoraEnvio(value){
+  if(!value)return "—";
+  const d=new Date(value);
+  return isNaN(d)?"—":d.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit",hour12:false});
+}
+function cleanCell(v){
+  let s=String(v ?? "").trim();
+  if(/^\\d+\\.0$/.test(s)) s=s.slice(0,-2);
+  return s;
+}
+
+function parseWorkbook(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error("No se pudo leer el archivo."));
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:"array",cellDates:false});
+        const sheet=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:false,defval:""});
+        let headerIndex=rows.findIndex(r=>norm(r[0]).includes("numero td") && norm(r[14]).includes("numero") && norm(r[20]).includes("aloc"));
+        if(headerIndex<0) headerIndex=2; // estructura exportada habitual de Chamadas
+        const records=[], seen=new Set();
+        let invalid=0, repeatedOrderInFile=0;
+        for(let i=headerIndex+1;i<rows.length;i++){
+          const r=rows[i]||[];
+          const pedido=cleanCell(r[0]);
+          const diseno=cleanCell(r[14]);
+          const date=parseDateTime(r[20]);
+          if(!pedido && !diseno && !r[20]) continue;
+          if(!pedido || !diseno || !date){invalid++;continue;}
+          const day=localDateKey(date);
+          const key=day+"|"+pedido;
+          if(seen.has(key)){repeatedOrderInFile++;continue;}
+          seen.add(key);
+          const qty=cleanCell(r[27]);
+          records.push({
+            fecha_jornada:day,
+            numero_pedido:pedido,
+            diseno:diseno,
+            fecha_hora:date.toISOString(),
+            cantidad:qty && !isNaN(Number(qty.replace(",",".")))?Number(qty.replace(",",".")):null
+          });
+        }
+        resolve({records,invalid,repeatedOrderInFile});
+      }catch(err){reject(err);}
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function importFile(file){
+  clearMessage();
+  if(!/\.(xls|xlsx|csv)$/i.test(file.name)){showMessage("Formato no compatible. Elegí un archivo XLS, XLSX o CSV.","err");return;}
+  try{
+    showMessage("Leyendo y procesando el archivo…","info");
+    const parsed=await parseWorkbook(file);
+    if(!parsed.records.length){showMessage("No se encontraron registros válidos. Verificá las columnas A, O y U del archivo.","err");return;}
+    // Envío por lotes. Los pedidos ya existentes se ignoran por la clave única fecha + número de pedido.
+    let inserted=0;
+    for(let i=0;i<parsed.records.length;i+=400){
+      const batch=parsed.records.slice(i,i+400);
+      const result=await api("/pedidos_diseno?on_conflict=fecha_jornada%2Cnumero_pedido",{
+        method:"POST",body:batch,prefer:"resolution=ignore-duplicates,return=representation"
+      });
+      inserted += Array.isArray(result)?result.length:0;
+    }
+    const days=[...new Set(parsed.records.map(x=>x.fecha_jornada))].sort();
+    jornadaActual=days[days.length-1];
+    $("fecha").value=jornadaActual;
+    await loadDay(jornadaActual);
+    await loadHistory();
+    showMessage(`Archivo procesado: ${parsed.records.length} pedidos válidos; ${inserted} pedidos nuevos incorporados. ${parsed.invalid} filas incompletas o inválidas omitidas${parsed.repeatedOrderInFile?`; ${parsed.repeatedOrderInFile} pedidos repetidos dentro del archivo omitidos`:""}.`, "ok");
+  }catch(err){showMessage(err.message,"err");}
+}
+
+function groupByDesign(rows){
+  const map=new Map();
+  rows.forEach(p=>{
+    const key=String(p.diseno).trim();
+    if(!map.has(key)) map.set(key,[]);
+    map.get(key).push(p);
+  });
+  return [...map.entries()].map(([diseno,items])=>{
+    items.sort((a,b)=>new Date(a.fecha_hora)-new Date(b.fecha_hora));
+    return {diseno,items,first:items[0],duplicados:items.length-1};
+  }).sort((a,b)=>new Date(a.first.fecha_hora)-new Date(b.first.fecha_hora));
+}
+
+async function loadDay(day){
+  if(!day)return;
+  jornadaActual=day;
+  $("fecha").value=day;
+  if($("fechaGraficos")) $("fechaGraficos").value=day;
+  $("tbody").innerHTML='<tr><td colspan="10" class="empty">Cargando pedidos…</td></tr>';
+  try{
+    pedidosDia=await api(`/pedidos_diseno?fecha_jornada=eq.${encodeURIComponent(day)}&select=fecha_jornada,numero_pedido,diseno,fecha_hora,cantidad&order=fecha_hora.asc&limit=5000`);
+    gruposActuales=groupByDesign(pedidosDia);
+    // Crear estado inicial solo para diseños que todavía no tienen seguimiento.
+    const trackingRows=gruposActuales.map(g=>({fecha_jornada:day,diseno:g.diseno,estado:"Buscando",cantidad_cajas:0}));
+    if(trackingRows.length){
+      for(let i=0;i<trackingRows.length;i+=400){
+        await api("/seguimiento_diseno?on_conflict=fecha_jornada%2Cdiseno",{method:"POST",body:trackingRows.slice(i,i+400),prefer:"resolution=ignore-duplicates,return=minimal"});
+      }
+    }
+    const rows=await api(`/seguimiento_diseno?fecha_jornada=eq.${encodeURIComponent(day)}&select=diseno,estado,cantidad_cajas`);
+    seguimiento={};
+    rows.forEach(r=>seguimiento[r.diseno]=r.estado);
+    renderTable();
+  }catch(err){
+    $("tbody").innerHTML=`<tr><td colspan="10" class="empty">${escapeHtml(err.message)}</td></tr>`;
+    $("connection").textContent="Error de conexión";
+  }
+}
+
+function renderTable(){
+  const counts={"Buscando":0,"Separado":0,"Enviado":0,"Sin stock":0};
+  gruposActuales.forEach(g=>{const s=seguimiento[g.diseno]||"Buscando";counts[s]=(counts[s]||0)+1;});
+  $("kTotal").textContent=gruposActuales.length;
+  $("kEnviado").textContent=counts.Enviado;
+  $("kSeparado").textContent=counts.Separado;
+  $("kBuscando").textContent=counts.Buscando;
+  $("kSinStock").textContent=counts["Sin stock"];
+  const q=norm($("buscar").value), filter=$("filtroEstado").value;
+  const filtered=gruposActuales.filter(g=>{
+    const s=seguimiento[g.diseno]||"Buscando";
+    const hay=norm(g.diseno+" "+g.first.numero_pedido+" "+g.items.map(x=>x.numero_pedido).join(" ")).includes(q);
+    return hay && (!filter || s===filter);
+  });
+  $("countShown").textContent=`${filtered.length} de ${gruposActuales.length} diseños`;
+  if(!filtered.length){
+    $("tbody").innerHTML=`<tr><td colspan="10" class="empty">${gruposActuales.length?"No hay resultados para ese filtro.":"No hay pedidos cargados para esta jornada."}</td></tr>`;
+    return;
+  }
+  $("tbody").innerHTML=filtered.map((g,i)=>{
+    const status=seguimiento[g.diseno]||"Buscando";
+    const ids=g.items.map(x=>x.numero_pedido).join(", ");
+    const result=status==="Enviado"?'<span class="result yes">Entregado</span>':'<span class="result no">No entregado</span>';
+    return `<tr>
+      <td>${i+1}</td><td class="order">${escapeHtml(g.first.numero_pedido)}</td>
+      <td class="design">${escapeHtml(g.diseno)}</td><td>${escapeHtml(fmtDateTime(g.first.fecha_hora))}</td>
+      <td>${escapeHtml(g.first.cantidad??"—")}</td><td title="${escapeHtml(ids)}">${g.items.length} ${g.items.length===1?"pedido":"pedidos"}</td>
+      <td><input class="boxes-input" type="number" min="0" step="1" inputmode="numeric" value="${Number(cajasPorDiseno[g.diseno]||0)}" data-boxes="${escapeHtml(g.diseno)}" aria-label="Cajas enviadas para diseño ${escapeHtml(g.diseno)}"></td>
+      <td><select class="status ${statusClass(status)}" data-design="${escapeHtml(g.diseno)}">${ESTADOS.map(s=>`<option ${s===status?"selected":""}>${s}</option>`).join("")}</select></td>
+      <td class="send-time">${status==="Enviado"?escapeHtml(fmtHoraEnvio(getHoraEnvio(jornadaActual,g.diseno))):"—"}</td>
+      <td>${result}</td></tr>`;
+  }).join("");
+}
+
+async function updateStatus(diseno,estado){
+  try{
+    await api("/seguimiento_diseno?on_conflict=fecha_jornada%2Cdiseno",{
+      method:"POST",
+      body:{fecha_jornada:jornadaActual,diseno,estado,updated_at:new Date().toISOString()},
+      prefer:"resolution=merge-duplicates,return=minimal"
+    });
+    seguimiento[diseno]=estado;
+    if(estado==="Enviado")setHoraEnvio(jornadaActual,diseno,new Date().toISOString());
+    else setHoraEnvio(jornadaActual,diseno,"");
+    renderTable();
+    renderCharts();
+  }catch(err){showMessage("No se pudo guardar el estado: "+err.message,"err");await loadDay(jornadaActual);}
+}
+
+async function updateBoxes(diseno,value){
+  const cajas=Math.max(0,Math.floor(Number(value)||0));
+  try{
+    await api(`/seguimiento_diseno?fecha_jornada=eq.${encodeURIComponent(jornadaActual)}&diseno=eq.${encodeURIComponent(diseno)}`,{
+      method:"PATCH",
+      body:{cantidad_cajas:cajas,updated_at:new Date().toISOString()},
+      prefer:"return=minimal"
+    });
+    cajasPorDiseno[diseno]=cajas;
+    showMessage(`Se guardaron ${cajas} cajas para el diseño ${diseno}.`,"ok");
+    renderCharts();
+  }catch(err){
+    showMessage("No se pudo guardar la cantidad de cajas: "+err.message,"err");
+    await loadDay(jornadaActual);
+  }
+}
+
+function showChartDetails(mode,value){
+  let selected=[];
+  let title="Detalle de pedidos";
+  let subtitle="";
+  if(mode==="estado"){
+    selected=gruposActuales.filter(g=>(seguimiento[g.diseno]||"Buscando")===value);
+    title=`Diseños con estado: ${value}`;
+    subtitle=`${selected.length} diseños encontrados en la jornada ${jornadaActual.split("-").reverse().join("/")}.`;
+  }else if(mode==="diseno"){
+    selected=gruposActuales.filter(g=>g.diseno===value);
+    title=`Detalle del diseño ${value}`;
+    subtitle=`Pedidos asociados y cajas registradas para la jornada ${jornadaActual.split("-").reverse().join("/")}.`;
+  }
+  const detailRows=[];
+  selected.forEach(g=>{
+    const estado=seguimiento[g.diseno]||"Buscando";
+    g.items.forEach(p=>detailRows.push({
+      pedido:p.numero_pedido,diseno:g.diseno,fecha:fmtDateTime(p.fecha_hora),cantidad:p.cantidad??"—",
+      cajas:Number(cajasPorDiseno[g.diseno]||0),estado,hora:estado==="Enviado"?fmtHoraEnvio(getHoraEnvio(jornadaActual,g.diseno)):"—"
+    }));
+  });
+  $("detailTitle").textContent=title;
+  $("detailSubtitle").textContent=subtitle;
+  if(!detailRows.length){
+    $("detailContent").innerHTML='<div class="detail-empty">No hay pedidos para mostrar en esta selección.</div>';
+  }else{
+    $("detailContent").innerHTML=`<table><thead><tr><th>Número de pedido</th><th>Diseño</th><th>Fecha y hora del pedido</th><th>Cantidad</th><th>Cajas enviadas</th><th>Estado</th><th>Hora de envío</th></tr></thead><tbody>${detailRows.map(r=>`<tr><td class="order">${escapeHtml(r.pedido)}</td><td class="design">${escapeHtml(r.diseno)}</td><td>${escapeHtml(r.fecha)}</td><td>${escapeHtml(r.cantidad)}</td><td>${r.cajas}</td><td>${escapeHtml(r.estado)}</td><td>${escapeHtml(r.hora)}</td></tr>`).join("")}</tbody></table>`;
+  }
+  $("chartDetail").classList.add("show");
+  $("chartDetail").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function renderCharts(){
+  if(!$("chartEstados") || !window.Chart) return;
+  const counts=Object.fromEntries(ESTADOS.map(x=>[x,0]));
+  gruposActuales.forEach(g=>{const st=seguimiento[g.diseno]||"Buscando";counts[st]=(counts[st]||0)+1;});
+  const totalCajas=gruposActuales.reduce((sum,g)=>sum+Number(cajasPorDiseno[g.diseno]||0),0);
+  $("gDisenos").textContent=gruposActuales.length;
+  $("gEnviados").textContent=counts["Enviado"]||0;
+  $("gCajas").textContent=totalCajas;
+  if(chartEstados) chartEstados.destroy();
+  chartEstados=new Chart($("chartEstados"),{
+    type:"doughnut",
+    data:{labels:ESTADOS,datasets:[{data:ESTADOS.map(x=>counts[x]||0),backgroundColor:["#1769aa","#e2a329","#16834b","#bd3030"],borderWidth:2,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} diseños`}}},onClick:(event,elements)=>{
+      if(!elements.length)return;
+      const estado=ESTADOS[elements[0].index];
+      showChartDetails("estado",estado);
+    },onHover:(event,elements)=>{event.native.target.style.cursor=elements.length?"pointer":"default";}}
+  });
+  const top=[...gruposActuales].map(g=>({diseno:g.diseno,cajas:Number(cajasPorDiseno[g.diseno]||0)}))
+    .filter(x=>x.cajas>0).sort((a,b)=>b.cajas-a.cajas).slice(0,10).reverse();
+  if(chartCajas) chartCajas.destroy();
+  chartCajas=new Chart($("chartCajas"),{
+    type:"bar",
+    data:{labels:top.map(x=>x.diseno),datasets:[{label:"Cajas enviadas",data:top.map(x=>x.cajas),backgroundColor:"#1769aa",borderRadius:6}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw} cajas`}}},scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{ticks:{autoSkip:false}}},onClick:(event,elements)=>{
+      if(!elements.length)return;
+      const diseno=top[elements[0].index].diseno;
+      showChartDetails("diseno",diseno);
+    },onHover:(event,elements)=>{event.native.target.style.cursor=elements.length?"pointer":"default";}}
+  });
+}
+async function loadChartsDay(day){
+  if(!day)return;
+  $("fechaGraficos").value=day;
+  await loadDay(day);
+}
+
+function exportReport(day){
+  const groups=groupByDesign(pedidosDia);
+  const rows=groups.map(g=>{
+    const estado=seguimiento[g.diseno]||"Buscando";
+    return {
+      "Orden":groups.indexOf(g)+1,
+      "Número de pedido considerado":g.first.numero_pedido,
+      "Diseño":g.diseno,
+      "Fecha y hora del primer pedido":fmtDateTime(g.first.fecha_hora),
+      "Cantidad del primer pedido":g.first.cantidad??"",
+      "Cajas enviadas":Number(cajasPorDiseno[g.diseno]||0),
+      "Estado":estado,
+      "Hora de envío":estado==="Enviado"?fmtHoraEnvio(getHoraEnvio(day,g.diseno)):"",
+      "Resultado":estado==="Enviado"?"Entregado":"No entregado",
+      "Cantidad de pedidos del mismo diseño":g.items.length,
+      "Números de pedido asociados":g.items.map(x=>x.numero_pedido).join(" | ")
+    };
+  });
+  const total=groups.length;
+  const delivered=rows.filter(r=>r.Estado==="Enviado").length;
+  const original=pedidosDia.length;
+  const summary=[
+    ["REPORTE DIARIO DE PEDIDOS DE DISEÑOS"],
+    ["Jornada",day],
+    ["Pedidos originales importados",original],
+    ["Diseños únicos",total],
+    ["Pedidos duplicados agrupados",original-total],
+    ["Diseños entregados",delivered],
+    ["Diseños no entregados",total-delivered],
+    ["Total de cajas enviadas",groups.reduce((sum,g)=>sum+Number(cajasPorDiseno[g.diseno]||0),0)],
+    ["Porcentaje de cumplimiento",total?delivered/total:0],
+    [],
+    ["Estado","Cantidad"],
+    ...ESTADOS.map(s=>[s,rows.filter(r=>r.Estado===s).length])
+  ];
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.aoa_to_sheet(summary);
+  ws1["!cols"]=[{wch:34},{wch:22}];
+  if(ws1["B9"])ws1["B9"].z="0.0%";
+  XLSX.utils.book_append_sheet(wb,ws1,"Resumen");
+  const ws2=XLSX.utils.json_to_sheet(rows);
+  ws2["!cols"]=[{wch:8},{wch:24},{wch:20},{wch:25},{wch:20},{wch:18},{wch:16},{wch:16},{wch:18},{wch:28},{wch:65}];
+  XLSX.utils.book_append_sheet(wb,ws2,"Detalle de diseños");
+  XLSX.writeFile(wb,`Reporte_Pedidos_${day}.xlsx`);
+}
+
+async function loadHistory(){
+  try{
+    const rows=await api("/pedidos_diseno?select=fecha_jornada&order=fecha_jornada.desc&limit=5000");
+    const days=[...new Set(rows.map(r=>r.fecha_jornada))].sort().reverse();
+    const select=$("historyDate");
+    const previous=select.value;
+    select.innerHTML=days.length?days.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d.split("-").reverse().join("/"))}</option>`).join(""):'<option value="">Todavía no hay jornadas</option>';
+    if(days.includes(previous))select.value=previous;
+    else if(days.includes(jornadaActual))select.value=jornadaActual;
+  }catch(err){$("historyDate").innerHTML='<option value="">No se pudo cargar el historial</option>';showMessage(err.message,"err");}
+}
+
+async function exportSelectedDay(){
+  const day=$("historyDate").value;
+  if(!day){showMessage("No hay una jornada seleccionada.","err");return;}
+  try{
+    await loadDay(day);
+    exportReport(day);
+  }catch(err){showMessage(err.message,"err");}
+}
+
+function setup(){
+  $("fecha").value=localDateKey(new Date());
+  $("fechaGraficos").value=$("fecha").value;
+  $("selectFile").addEventListener("click",()=>$("fileInput").click());
+  $("fileInput").addEventListener("change",e=>{if(e.target.files[0])importFile(e.target.files[0]);e.target.value="";});
+  const dz=$("dropzone");
+  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+  dz.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)importFile(f);});
+  $("fecha").addEventListener("change",()=>{ $("fechaGraficos").value=$("fecha").value;loadDay($("fecha").value); });
+  $("recargar").addEventListener("click",()=>loadDay($("fecha").value));
+  $("buscar").addEventListener("input",renderTable);
+  $("filtroEstado").addEventListener("change",renderTable);
+  $("tbody").addEventListener("change",e=>{
+    if(e.target.matches("select[data-design]"))updateStatus(e.target.dataset.design,e.target.value);
+    if(e.target.matches("input[data-boxes]"))updateBoxes(e.target.dataset.boxes,e.target.value);
+  });
+  $("exportar").addEventListener("click",()=>exportReport(jornadaActual));
+  document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
+    document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.id==="panel-"+btn.dataset.tab));
+    if(btn.dataset.tab==="historial")loadHistory();
+    if(btn.dataset.tab==="graficos")loadChartsDay($("fechaGraficos").value || $("fecha").value);
+  }));
+  $("refreshHistory").addEventListener("click",loadHistory);
+  $("closeDetail").addEventListener("click",()=>$("chartDetail").classList.remove("show"));
+  $("actualizarGraficos").addEventListener("click",()=>loadChartsDay($("fechaGraficos").value));
+  $("fechaGraficos").addEventListener("change",()=>loadChartsDay($("fechaGraficos").value));
+  $("openHistory").addEventListener("click",()=>loadDay($("historyDate").value).then(()=>{document.querySelector('[data-tab="gestion"]').click();}));
+  $("exportHistory").addEventListener("click",exportSelectedDay);
+
+  if(SUPABASE_ANON_KEY.includes("PEGAR_AQUI")){
+    $("connection").textContent="Falta configurar Supabase";
+    $("tbody").innerHTML='<tr><td colspan="10" class="empty">Pegá la clave anon/public de Supabase en la configuración del código para comenzar.</td></tr>';
+    return;
+  }
+  api("/pedidos_diseno?select=fecha_jornada&limit=1").then(async()=>{
+    $("connection").textContent="Base de datos conectada";
+    await loadDay($("fecha").value);
+    await loadHistory();
+  }).catch(err=>{
+    $("connection").textContent="Error de conexión";
+    $("tbody").innerHTML=`<tr><td colspan="10" class="empty">${escapeHtml(err.message)}</td></tr>`;
+  });
+}
+setup();
+</script>
+</body>
+</html>
