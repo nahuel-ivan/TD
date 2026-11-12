@@ -164,7 +164,7 @@ footer{text-align:center;color:#8290a0;font-size:11px;padding:20px}
     </div>
   </section>
 </main>
-<footer>Stellantis | CREADO POR MILAGROS LUCENA Y NAHUEL GONZALEZ</footer>
+<footer>Stellantis | Herramienta interna de seguimiento de pedidos</footer>
 
 <script>
 /* CONFIGURACIÓN: clave pública publishable del proyecto Supabase. */
@@ -191,7 +191,7 @@ function showMessage(text,type="info"){
   const el=$("message");el.textContent=text;el.className="message show "+type;
 }
 function clearMessage(){ $("message").className="message"; }
-function statusClass(s){return s==="Buscando"?"busqueda":s==="Separado"?"separado":s==="Enviado"?"enviado":"sin-stock";}
+function statusClass(s){return s===""?"":s==="Buscando"?"busqueda":s==="Separado"?"separado":s==="Enviado"?"enviado":"sin-stock";}
 
 async function api(path, options={}){
   if(!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("PEGAR_AQUI")) throw new Error("Falta configurar la clave anon/public de Supabase en el código.");
@@ -334,7 +334,7 @@ async function loadDay(day){
     pedidosDia=await api(`/pedidos_diseno?fecha_jornada=eq.${encodeURIComponent(day)}&select=fecha_jornada,numero_pedido,diseno,fecha_hora,cantidad&order=fecha_hora.asc&limit=5000`);
     gruposActuales=groupByDesign(pedidosDia);
     // Crear estado inicial solo para diseños que todavía no tienen seguimiento.
-    const trackingRows=gruposActuales.map(g=>({fecha_jornada:day,diseno:g.diseno,estado:"Buscando",cantidad_cajas:0}));
+    const trackingRows=gruposActuales.map(g=>({fecha_jornada:day,diseno:g.diseno,estado:"",cantidad_cajas:0}));
     if(trackingRows.length){
       for(let i=0;i<trackingRows.length;i+=400){
         await api("/seguimiento_diseno?on_conflict=fecha_jornada%2Cdiseno",{method:"POST",body:trackingRows.slice(i,i+400),prefer:"resolution=ignore-duplicates,return=minimal"});
@@ -342,7 +342,11 @@ async function loadDay(day){
     }
     const rows=await api(`/seguimiento_diseno?fecha_jornada=eq.${encodeURIComponent(day)}&select=diseno,estado,cantidad_cajas`);
     seguimiento={};
-    rows.forEach(r=>seguimiento[r.diseno]=r.estado);
+    cajasPorDiseno={};
+    rows.forEach(r=>{
+      seguimiento[r.diseno]=r.estado ?? "";
+      cajasPorDiseno[r.diseno]=Number(r.cantidad_cajas || 0);
+    });
     renderTable();
   }catch(err){
     $("tbody").innerHTML=`<tr><td colspan="10" class="empty">${escapeHtml(err.message)}</td></tr>`;
@@ -351,8 +355,8 @@ async function loadDay(day){
 }
 
 function renderTable(){
-  const counts={"Buscando":0,"Separado":0,"Enviado":0,"Sin stock":0};
-  gruposActuales.forEach(g=>{const s=seguimiento[g.diseno]||"Buscando";counts[s]=(counts[s]||0)+1;});
+  const counts={"":0,"Buscando":0,"Separado":0,"Enviado":0,"Sin stock":0};
+  gruposActuales.forEach(g=>{const s=seguimiento[g.diseno]??"";counts[s]=(counts[s]||0)+1;});
   $("kTotal").textContent=gruposActuales.length;
   $("kEnviado").textContent=counts.Enviado;
   $("kSeparado").textContent=counts.Separado;
@@ -360,7 +364,7 @@ function renderTable(){
   $("kSinStock").textContent=counts["Sin stock"];
   const q=norm($("buscar").value), filter=$("filtroEstado").value;
   const filtered=gruposActuales.filter(g=>{
-    const s=seguimiento[g.diseno]||"Buscando";
+    const s=seguimiento[g.diseno]??"";
     const hay=norm(g.diseno+" "+g.first.numero_pedido+" "+g.items.map(x=>x.numero_pedido).join(" ")).includes(q);
     return hay && (!filter || s===filter);
   });
@@ -370,15 +374,15 @@ function renderTable(){
     return;
   }
   $("tbody").innerHTML=filtered.map((g,i)=>{
-    const status=seguimiento[g.diseno]||"Buscando";
+    const status=seguimiento[g.diseno]??"";
     const ids=g.items.map(x=>x.numero_pedido).join(", ");
-    const result=status==="Enviado"?'<span class="result yes">Entregado</span>':'<span class="result no">No entregado</span>';
+    const result=status==="Enviado"?'<span class="result yes">Entregado</span>':status===""?'<span>Sin definir</span>':'<span class="result no">No entregado</span>';
     return `<tr>
       <td>${i+1}</td><td class="order">${escapeHtml(g.first.numero_pedido)}</td>
       <td class="design">${escapeHtml(g.diseno)}</td><td>${escapeHtml(fmtDateTime(g.first.fecha_hora))}</td>
       <td>${escapeHtml(g.first.cantidad??"—")}</td><td title="${escapeHtml(ids)}">${g.items.length} ${g.items.length===1?"pedido":"pedidos"}</td>
       <td><input class="boxes-input" type="number" min="0" step="1" inputmode="numeric" value="${Number(cajasPorDiseno[g.diseno]||0)}" data-boxes="${escapeHtml(g.diseno)}" aria-label="Cajas enviadas para diseño ${escapeHtml(g.diseno)}"></td>
-      <td><select class="status ${statusClass(status)}" data-design="${escapeHtml(g.diseno)}">${ESTADOS.map(s=>`<option ${s===status?"selected":""}>${s}</option>`).join("")}</select></td>
+      <td><select class="status ${statusClass(status)}" data-design="${escapeHtml(g.diseno)}"><option value="" ${status===""?"selected":""}>Seleccionar estado</option>${ESTADOS.map(s=>`<option value="${s}" ${s===status?"selected":""}>${s}</option>`).join("")}</select></td>
       <td class="send-time">${status==="Enviado"?escapeHtml(fmtHoraEnvio(getHoraEnvio(jornadaActual,g.diseno))):"—"}</td>
       <td>${result}</td></tr>`;
   }).join("");
@@ -421,8 +425,8 @@ function showChartDetails(mode,value){
   let title="Detalle de pedidos";
   let subtitle="";
   if(mode==="estado"){
-    selected=gruposActuales.filter(g=>(seguimiento[g.diseno]||"Buscando")===value);
-    title=`Diseños con estado: ${value}`;
+    selected=gruposActuales.filter(g=>(seguimiento[g.diseno]??"")===value);
+    title=`Diseños con estado: ${value || "Sin estado"}`;
     subtitle=`${selected.length} diseños encontrados en la jornada ${jornadaActual.split("-").reverse().join("/")}.`;
   }else if(mode==="diseno"){
     selected=gruposActuales.filter(g=>g.diseno===value);
@@ -431,7 +435,7 @@ function showChartDetails(mode,value){
   }
   const detailRows=[];
   selected.forEach(g=>{
-    const estado=seguimiento[g.diseno]||"Buscando";
+    const estado=seguimiento[g.diseno]??"";
     g.items.forEach(p=>detailRows.push({
       pedido:p.numero_pedido,diseno:g.diseno,fecha:fmtDateTime(p.fecha_hora),cantidad:p.cantidad??"—",
       cajas:Number(cajasPorDiseno[g.diseno]||0),estado,hora:estado==="Enviado"?fmtHoraEnvio(getHoraEnvio(jornadaActual,g.diseno)):"—"
@@ -450,8 +454,8 @@ function showChartDetails(mode,value){
 
 function renderCharts(){
   if(!$("chartEstados") || !window.Chart) return;
-  const counts=Object.fromEntries(ESTADOS.map(x=>[x,0]));
-  gruposActuales.forEach(g=>{const st=seguimiento[g.diseno]||"Buscando";counts[st]=(counts[st]||0)+1;});
+  const counts={"":0,...Object.fromEntries(ESTADOS.map(x=>[x,0]))};
+  gruposActuales.forEach(g=>{const st=seguimiento[g.diseno]??"";counts[st]=(counts[st]||0)+1;});
   const totalCajas=gruposActuales.reduce((sum,g)=>sum+Number(cajasPorDiseno[g.diseno]||0),0);
   $("gDisenos").textContent=gruposActuales.length;
   $("gEnviados").textContent=counts["Enviado"]||0;
@@ -459,10 +463,10 @@ function renderCharts(){
   if(chartEstados) chartEstados.destroy();
   chartEstados=new Chart($("chartEstados"),{
     type:"doughnut",
-    data:{labels:ESTADOS,datasets:[{data:ESTADOS.map(x=>counts[x]||0),backgroundColor:["#1769aa","#e2a329","#16834b","#bd3030"],borderWidth:2,borderColor:"#fff"}]},
+    data:{labels:["Sin estado",...ESTADOS],datasets:[{data:["",...ESTADOS].map(x=>counts[x]||0),backgroundColor:["#aab4c0","#1769aa","#e2a329","#16834b","#bd3030"],borderWidth:2,borderColor:"#fff"}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} diseños`}}},onClick:(event,elements)=>{
       if(!elements.length)return;
-      const estado=ESTADOS[elements[0].index];
+      const estado=["",...ESTADOS][elements[0].index];
       showChartDetails("estado",estado);
     },onHover:(event,elements)=>{event.native.target.style.cursor=elements.length?"pointer":"default";}}
   });
@@ -488,7 +492,7 @@ async function loadChartsDay(day){
 function exportReport(day){
   const groups=groupByDesign(pedidosDia);
   const rows=groups.map(g=>{
-    const estado=seguimiento[g.diseno]||"Buscando";
+    const estado=seguimiento[g.diseno]??"";
     return {
       "Orden":groups.indexOf(g)+1,
       "Número de pedido considerado":g.first.numero_pedido,
@@ -498,7 +502,7 @@ function exportReport(day){
       "Cajas enviadas":Number(cajasPorDiseno[g.diseno]||0),
       "Estado":estado,
       "Hora de envío":estado==="Enviado"?fmtHoraEnvio(getHoraEnvio(day,g.diseno)):"",
-      "Resultado":estado==="Enviado"?"Entregado":"No entregado",
+      "Resultado":estado==="Enviado"?"Entregado":estado===""?"Sin definir":"No entregado",
       "Cantidad de pedidos del mismo diseño":g.items.length,
       "Números de pedido asociados":g.items.map(x=>x.numero_pedido).join(" | ")
     };
@@ -513,11 +517,13 @@ function exportReport(day){
     ["Diseños únicos",total],
     ["Pedidos duplicados agrupados",original-total],
     ["Diseños entregados",delivered],
-    ["Diseños no entregados",total-delivered],
+    ["Diseños no entregados",rows.filter(r=>r.Estado!=="Enviado" && r.Estado!=="").length],
+    ["Diseños sin estado definido",rows.filter(r=>r.Estado==="").length],
     ["Total de cajas enviadas",groups.reduce((sum,g)=>sum+Number(cajasPorDiseno[g.diseno]||0),0)],
     ["Porcentaje de cumplimiento",total?delivered/total:0],
     [],
     ["Estado","Cantidad"],
+    ["Sin estado",rows.filter(r=>r.Estado==="").length],
     ...ESTADOS.map(s=>[s,rows.filter(r=>r.Estado===s).length])
   ];
   const wb=XLSX.utils.book_new();
